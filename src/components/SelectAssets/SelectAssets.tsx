@@ -3,8 +3,10 @@ import { AssetSearch } from 'components/AssetSearch/AssetSearch'
 import { SlideTransition } from 'components/SlideTransition'
 import { RouteComponentProps } from 'react-router-dom'
 
+export type Asset = {}
+
 type SelectAssetsProps = {
-  onClick(): void
+  onClick(asset: Asset): void
 } & RouteComponentProps
 
 export const SelectAssets = ({ onClick }: SelectAssetsProps) => {

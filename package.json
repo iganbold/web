@@ -43,6 +43,7 @@
     "react-icons": "^4.2.0",
     "react-number-format": "^4.7.3",
     "react-polyglot": "^0.7.2",
+    "react-qr-reader": "^2.2.1",
     "react-redux": "^7.2.4",
     "react-router-dom": "^5.2.0",
     "react-scripts": "4.0.3",

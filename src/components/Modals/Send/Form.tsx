@@ -57,15 +57,17 @@ export const Form = () => {
   })
 
   const handleClick = () => {
+    /** @todo wire up asset select */
+    // methods.setValue('asset', asset)
     history.push('/send/details')
   }
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = (data: SendInput) => {
     console.info(data)
     close('send')
     toast({
-      title: `${asset.name} sent`,
-      description: 'You have successfully sent 0.005 BTC',
+      title: `${data.asset.name} sent`,
+      description: `You have successfully sent ${data.crypto.amount} ${data.crypto.symbol}`,
       status: 'success',
       duration: 9000,
       isClosable: true,

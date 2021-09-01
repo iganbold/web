@@ -1,21 +1,16 @@
-import { ArrowBackIcon } from '@chakra-ui/icons'
+// import { ArrowBackIcon } from '@chakra-ui/icons'
 import {
   Box,
   Button,
   FormControl,
   FormHelperText,
   FormLabel,
-  IconButton,
-  Input,
-  InputGroup,
-  InputRightElement,
   ModalBody,
   ModalCloseButton,
   ModalFooter,
   ModalHeader,
   Stack
 } from '@chakra-ui/react'
-import { QRCode } from 'components/Icons/QRCode'
 import { SlideTransition } from 'components/SlideTransition'
 import { Text } from 'components/Text'
 import { TokenRow } from 'components/TokenRow/TokenRow'
@@ -25,10 +20,11 @@ import { useBalances } from 'hooks/useBalances/useBalances'
 import { bnOrZero } from 'lib/bignumber'
 import get from 'lodash/get'
 import { useMemo, useState } from 'react'
-import { Controller, useFormContext, useWatch } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 import { useTranslate } from 'react-polyglot'
 import { useHistory } from 'react-router-dom'
 
+import { AddressInput } from './AddressInput/AddressInput'
 import { TxFeeRadioGroup } from './TxFeeRadioGroup'
 
 const flattenTokenBalances = (balances: any) =>
@@ -70,13 +66,10 @@ export const Details = () => {
     history.push('/send/confirm')
   }
 
+  /** When selecting new assets the network (CHAIN) is not returned from the market service. This will break */
   const adapter = chainAdapter.byChain(values?.asset.network)
-
-  console.log('balances', balances)
-  console.log('flattenedBalances', flattenedBalances)
-  console.log('values?.asset?.contractAddress', values?.asset?.contractAddress)
-
   const assetBalance = flattenedBalances[values?.asset?.contractAddress]
+
   const accountBalances = useMemo(() => {
     const crypto = bnOrZero(assetBalance?.balance).div(`1e${assetBalance?.decimals}`)
     const fiat = crypto.times(values.asset.price)
@@ -109,11 +102,13 @@ export const Details = () => {
 
   const cryptoError = get(errors, 'crypto.amount.message', null)
   const fiatError = get(errors, 'fiat.amount.message', null)
-  const balanceError = cryptoError || fiatError
+  const addressError = get(errors, 'address.message', null)
+  const balanceError = addressError || cryptoError || fiatError
 
   return (
     <SlideTransition>
-      <IconButton
+      {/** @todo Wire up asset select  */}
+      {/* <IconButton
         variant='ghost'
         icon={<ArrowBackIcon />}
         aria-label='Back'
@@ -124,7 +119,7 @@ export const Details = () => {
         size='sm'
         isRound
         onClick={() => history.push('/send/select')}
-      />
+      /> */}
       <ModalHeader textAlign='center'>
         {translate('modals.send.sendForm.sendAsset', { asset: values.asset.name })}
       </ModalHeader>
@@ -134,34 +129,17 @@ export const Details = () => {
           <FormLabel color='gray.500' w='full'>
             {translate('modals.send.sendForm.sendTo')}
           </FormLabel>
-          <InputGroup size='lg'>
-            <Controller
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  autoFocus // eslint-disable-line jsx-a11y/no-autofocus
-                  onChange={onChange}
-                  placeholder='Token Address'
-                  size='lg'
-                  value={value}
-                  variant='filled'
-                />
-              )}
-              control={control}
-              name='address'
-              rules={{
-                required: true,
-                validate: {
-                  validateAddress: (value: string) => {
-                    // const { valid } = adapter.validateAddress(value)
-                    return true
-                  }
+          <AddressInput
+            rules={{
+              required: true,
+              validate: {
+                validateAddress: async (value: string) => {
+                  const validAddress = await adapter.validateAddress(value)
+                  return validAddress.valid || 'common.invalidAddress'
                 }
-              }}
-            />
-            <InputRightElement>
-              <IconButton aria-label='Scan QR Code' size='sm' variant='ghost' icon={<QRCode />} />
-            </InputRightElement>
-          </InputGroup>
+              }
+            }}
+          />
         </FormControl>
         <FormControl mt={4}>
           <Box display='flex' alignItems='center' justifyContent='space-between'>

@@ -8,16 +8,20 @@ import {
   Stack,
   useColorModeValue
 } from '@chakra-ui/react'
+import { Amount } from 'components/Amount/Amount'
 import { HelperToolTip } from 'components/HelperTooltip'
 import { Row } from 'components/Row'
 import { SlideTransition } from 'components/SlideTransition'
 import { RawText, Text } from 'components/Text'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useWatch } from 'react-hook-form'
 import { useHistory } from 'react-router-dom'
 
 export const Confirm = () => {
   const history = useHistory()
-  const { getValues } = useFormContext()
+  const { control, getValues } = useFormContext()
+  const { address, asset, crypto, fiat, ...rest } = useWatch({ control })
+  console.log('asset', asset)
+  console.log('asset', rest)
 
   return (
     <SlideTransition>
@@ -26,20 +30,23 @@ export const Confirm = () => {
       </ModalHeader>
       <ModalBody>
         <Flex flexDir='column' alignItems='center' mb={8}>
-          <RawText fontSize='4xl' fontWeight='bold' lineHeight='shorter'>
-            0.004 BTC
-          </RawText>
-          <RawText color='gray.500' fontSize='xl' lineHeight='short'>
-            $100.25
-          </RawText>
+          <Amount.Crypto
+            fontSize='4xl'
+            fontWeight='bold'
+            lineHeight='shorter'
+            textTransform='uppercase'
+            symbol={crypto.symbol}
+            value={crypto.amount}
+          />
+          <Amount.Fiat color='gray.500' fontSize='xl' lineHeight='short' value={fiat.amount} />
         </Flex>
         <Stack spacing={4} mb={4}>
           <Row>
             <Row.Label>
-              <Text translation={['modals.send.confirm.sendAssetTo', { asset: 'Bitcoin' }]} />
+              <Text translation={['modals.send.confirm.sendAssetTo', { asset: asset.name }]} />
             </Row.Label>
             <Row.Value>
-              <RawText>bc1qxjmc...s9754len</RawText>
+              <RawText>{address}</RawText>
             </Row.Value>
           </Row>
           <Row>
@@ -50,7 +57,7 @@ export const Confirm = () => {
               </HelperToolTip>
             </Row.Label>
             <Row.Value>
-              <RawText>$10.00</RawText>
+              <Amount.Fiat value={'10'} />
             </Row.Value>
           </Row>
           <Button width='full' onClick={() => history.push('/send/details')}>
