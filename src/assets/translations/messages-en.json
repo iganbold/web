@@ -4,7 +4,8 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "noResultsFound": "No results found.",
-    "insufficientFunds": "Insufficient Funds"
+    "insufficientFunds": "Insufficient Funds",
+    "invalidAddress": "Invalid Address"
   },
   "dashboard": {
     "portfolio": {

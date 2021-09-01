@@ -16,6 +16,8 @@ export const useBalances = (): UseBalancesReturnType => {
   const chainAdapter = useChainAdapters()
   const [balances, setBalances] = useState<Record<string, BalanceResponse>>({})
 
+  console.log('wallet', wallet)
+
   const getBalances = useCallback(async () => {
     if (wallet) {
       const supportedAdapters = chainAdapter.getSupportedAdapters()
@@ -27,6 +29,7 @@ export const useBalances = (): UseBalancesReturnType => {
         const balanceResponse: BalanceResponse | undefined = await adapter.getBalance(
           '0xf293F9e575AEc02d3dA5952b5fd95353C53A134e'
         )
+        console.log('balanceResponse', balanceResponse)
         if (!balanceResponse) continue
         acc[key] = balanceResponse
       }

@@ -19,6 +19,7 @@ import { QRCode } from 'components/Icons/QRCode'
 import { SlideTransition } from 'components/SlideTransition'
 import { Text } from 'components/Text'
 import { TokenRow } from 'components/TokenRow/TokenRow'
+import { useChainAdapters } from 'context/ChainAdaptersProvider/ChainAdaptersProvider'
 import { useModal } from 'context/ModalProvider/ModalProvider'
 import { useBalances } from 'hooks/useBalances/useBalances'
 import { bnOrZero } from 'lib/bignumber'
@@ -43,9 +44,10 @@ const flattenTokenBalances = (balances: any) =>
   }, {})
 
 export const Details = () => {
-  const [fiatInput, setFiatInput] = useState<boolean>(true)
-  // const [fieldName, setFieldName] = useState<'fiat.amount' | 'fiat.crypto'>('fiat.crypto')
+  const [fieldName, setFieldName] = useState<'fiat.amount' | 'crypto.amount'>('fiat.amount')
   const { balances } = useBalances()
+  const chainAdapter = useChainAdapters()
+
   const translate = useTranslate()
   const history = useHistory()
   const {
@@ -60,12 +62,19 @@ export const Details = () => {
   const values = useWatch({})
 
   const toggleCurrency = () => {
-    setFiatInput(input => !input)
+    const nextFieldName = fieldName === 'fiat.amount' ? 'crypto.amount' : 'fiat.amount'
+    setFieldName(nextFieldName)
   }
 
   const onNext = () => {
     history.push('/send/confirm')
   }
+
+  const adapter = chainAdapter.byChain(values?.asset.network)
+
+  console.log('balances', balances)
+  console.log('flattenedBalances', flattenedBalances)
+  console.log('values?.asset?.contractAddress', values?.asset?.contractAddress)
 
   const assetBalance = flattenedBalances[values?.asset?.contractAddress]
   const accountBalances = useMemo(() => {
@@ -77,31 +86,25 @@ export const Details = () => {
     }
   }, [assetBalance, values.asset])
 
+  const fiatField = fieldName === 'fiat.amount'
+
   const handleInputChange = (inputValue: string) => {
-    const value = Number(inputValue.replace(/[^0-9.-]+/g, ''))
-    const key = !fiatInput ? 'fiat.amount' : 'crypto.amount'
+    const key = !fiatField ? 'fiat.amount' : 'crypto.amount'
     const assetPrice = values.asset.price
-    const amount = fiatInput
-      ? bnOrZero(value).div(assetPrice).toString()
-      : bnOrZero(value).times(assetPrice).toString()
+    const amount = fiatField
+      ? bnOrZero(inputValue).div(assetPrice).toString()
+      : bnOrZero(inputValue).times(assetPrice).toString()
     setValue(key, amount)
   }
 
-  // const fiatField = fieldName === 'fiat.amount'
   const validateCryptoAmount = (value: string) => {
-    if (!fiatInput) {
-      const hasValidBalance = accountBalances.crypto.gte(value.replace(/[^0-9.-]+/g, ''))
-      return hasValidBalance || 'common.insufficientFunds'
-    }
-    return true
+    const hasValidBalance = accountBalances.crypto.gte(value)
+    return hasValidBalance || 'common.insufficientFunds'
   }
 
   const validateFiatAmount = (value: string) => {
-    if (fiatInput) {
-      const hasValidBalance = accountBalances.fiat.gte(value.replace(/[^0-9.-]+/g, ''))
-      return hasValidBalance || 'common.insufficientFunds'
-    }
-    return true
+    const hasValidBalance = accountBalances.fiat.gte(value)
+    return hasValidBalance || 'common.insufficientFunds'
   }
 
   const cryptoError = get(errors, 'crypto.amount.message', null)
@@ -149,6 +152,7 @@ export const Details = () => {
                 required: true,
                 validate: {
                   validateAddress: (value: string) => {
+                    // const { valid } = adapter.validateAddress(value)
                     return true
                   }
                 }
@@ -173,37 +177,67 @@ export const Details = () => {
               _hover={{ color: 'white' }}
             >
               ≈{' '}
-              {!fiatInput
-                ? `${values.fiat.amount ?? 0} ${values.fiat.symbol}`
-                : `${values.crypto.amount ?? 0} ${values.crypto.symbol}`}
+              {fiatField
+                ? `${values.crypto.amount ?? 0} ${values.crypto.symbol}`
+                : `${values.fiat.amount ?? 0} ${values.fiat.symbol}`}
             </FormHelperText>
           </Box>
-          <TokenRow
-            control={control}
-            fieldName={fiatInput ? 'fiat.amount' : 'crypto.amount'}
-            onInputChange={handleInputChange}
-            inputLeftElement={
-              <Button
-                ml={1}
-                size='sm'
-                variant='ghost'
-                textTransform='uppercase'
-                onClick={toggleCurrency}
-                width='full'
-              >
-                {fiatInput ? getValues('fiat.symbol') : getValues('crypto.symbol')}
-              </Button>
-            }
-            inputRightElement={
-              <Button h='1.75rem' size='sm' variant='ghost' colorScheme='blue'>
-                <Text translation='modals.send.sendForm.max' />
-              </Button>
-            }
-            rules={{
-              required: true,
-              validate: { validateCryptoAmount, validateFiatAmount }
-            }}
-          />
+          {fieldName === 'crypto.amount' && (
+            <TokenRow
+              control={control}
+              fieldName='crypto.amount'
+              onInputChange={handleInputChange}
+              inputLeftElement={
+                <Button
+                  ml={1}
+                  size='sm'
+                  variant='ghost'
+                  textTransform='uppercase'
+                  onClick={toggleCurrency}
+                  width='full'
+                >
+                  {getValues('crypto.symbol')}
+                </Button>
+              }
+              inputRightElement={
+                <Button h='1.75rem' size='sm' variant='ghost' colorScheme='blue'>
+                  <Text translation='modals.send.sendForm.max' />
+                </Button>
+              }
+              rules={{
+                required: true,
+                validate: { validateCryptoAmount }
+              }}
+            />
+          )}
+          {fieldName === 'fiat.amount' && (
+            <TokenRow
+              control={control}
+              fieldName='fiat.amount'
+              onInputChange={handleInputChange}
+              inputLeftElement={
+                <Button
+                  ml={1}
+                  size='sm'
+                  variant='ghost'
+                  textTransform='uppercase'
+                  onClick={toggleCurrency}
+                  width='full'
+                >
+                  {getValues('fiat.symbol')}
+                </Button>
+              }
+              inputRightElement={
+                <Button h='1.75rem' size='sm' variant='ghost' colorScheme='blue'>
+                  <Text translation='modals.send.sendForm.max' />
+                </Button>
+              }
+              rules={{
+                required: true,
+                validate: { validateFiatAmount }
+              }}
+            />
+          )}
         </FormControl>
         <FormControl mt={4}>
           <FormLabel color='gray.500' htmlFor='tx-fee'>

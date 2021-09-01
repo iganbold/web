@@ -7,7 +7,7 @@ import {
   InputRightElement
 } from '@chakra-ui/react'
 import { useLocaleFormatter } from 'hooks/useLocaleFormatter/useLocaleFormatter'
-import { Control, Controller, ControllerProps, useWatch } from 'react-hook-form'
+import { Control, Controller, ControllerProps } from 'react-hook-form'
 import NumberFormat from 'react-number-format'
 
 const CryptoInput = (props: InputProps) => (
@@ -43,8 +43,6 @@ export const TokenRow = ({
   const {
     number: { localeParts }
   } = useLocaleFormatter({ fiatType: 'USD' })
-  const values = useWatch({})
-  const inputValue = fieldName === 'fiat.amount' ? values.fiat?.amount : values.crypto?.amount
 
   return (
     <InputGroup size='lg' {...rest}>
@@ -54,17 +52,17 @@ export const TokenRow = ({
         </InputLeftElement>
       )}
       <Controller
-        render={({ field: { onChange } }) => {
+        render={({ field: { onChange, value } }) => {
           return (
             <NumberFormat
               inputMode='decimal'
               thousandSeparator={localeParts.group}
               decimalSeparator={localeParts.decimal}
-              value={inputValue}
               customInput={CryptoInput}
-              onChange={e => {
-                onChange(e.target.value)
-                onInputChange && onInputChange(e.target.value)
+              value={value}
+              onValueChange={e => {
+                onChange(e.value)
+                onInputChange && onInputChange(e.value)
               }}
             />
           )
