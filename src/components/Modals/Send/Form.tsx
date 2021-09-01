@@ -18,7 +18,7 @@ import { Details } from './Details'
 // @TODO Determine if we should use symbol for display purposes or some other identifier for display
 type SendInput = {
   address: string
-  asset: string
+  asset: any
   fee: string
   crypto: {
     amount: string
@@ -34,20 +34,24 @@ export const Form = () => {
   const location = useLocation()
   const history = useHistory()
   const toast = useToast()
-  const modal = useModal()
+  const {
+    close,
+    props: { asset }
+  } = useModal()
 
   const methods = useForm<SendInput>({
     mode: 'onChange',
     defaultValues: {
       address: '',
+      asset,
       fee: 'Average',
       crypto: {
         amount: '',
-        symbol: 'BTC' // @TODO wire up to state
+        symbol: asset?.symbol
       },
       fiat: {
         amount: '',
-        symbol: 'USD' // @TODO wire up to state
+        symbol: 'USD' // TODO: localize currency
       }
     }
   })
@@ -58,9 +62,9 @@ export const Form = () => {
 
   const handleSubmit = (data: any) => {
     console.info(data)
-    modal.close('send')
+    close('send')
     toast({
-      title: 'Bitcoin Sent.',
+      title: `${asset.name} sent`,
       description: 'You have successfully sent 0.005 BTC',
       status: 'success',
       duration: 9000,

@@ -12,30 +12,52 @@ import {
   ModalBody,
   ModalCloseButton,
   ModalFooter,
-  ModalHeader
+  ModalHeader,
+  Stack
 } from '@chakra-ui/react'
 import { QRCode } from 'components/Icons/QRCode'
 import { SlideTransition } from 'components/SlideTransition'
 import { Text } from 'components/Text'
 import { TokenRow } from 'components/TokenRow/TokenRow'
 import { useModal } from 'context/ModalProvider/ModalProvider'
-import { useState } from 'react'
-import { Controller, useFormContext } from 'react-hook-form'
+import { useBalances } from 'hooks/useBalances/useBalances'
+import { bnOrZero } from 'lib/bignumber'
+import get from 'lodash/get'
+import { useMemo, useState } from 'react'
+import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { useTranslate } from 'react-polyglot'
 import { useHistory } from 'react-router-dom'
 
 import { TxFeeRadioGroup } from './TxFeeRadioGroup'
 
+const flattenTokenBalances = (balances: any) =>
+  Object.keys(balances).reduce((acc: any, key) => {
+    const value = balances[key]
+    acc[key] = value
+    if (value.tokens) {
+      value.tokens.forEach((token: any) => {
+        acc[token.contract.toLowerCase()] = token
+      })
+    }
+    return acc
+  }, {})
+
 export const Details = () => {
   const [fiatInput, setFiatInput] = useState<boolean>(true)
+  // const [fieldName, setFieldName] = useState<'fiat.amount' | 'fiat.crypto'>('fiat.crypto')
+  const { balances } = useBalances()
   const translate = useTranslate()
   const history = useHistory()
   const {
     control,
     getValues,
-    formState: { isValid }
+    setValue,
+    formState: { isValid, errors }
   } = useFormContext()
   const modal = useModal()
+  const flattenedBalances = flattenTokenBalances(balances)
+
+  const values = useWatch({})
 
   const toggleCurrency = () => {
     setFiatInput(input => !input)
@@ -44,6 +66,47 @@ export const Details = () => {
   const onNext = () => {
     history.push('/send/confirm')
   }
+
+  const assetBalance = flattenedBalances[values?.asset?.contractAddress]
+  const accountBalances = useMemo(() => {
+    const crypto = bnOrZero(assetBalance?.balance).div(`1e${assetBalance?.decimals}`)
+    const fiat = crypto.times(values.asset.price)
+    return {
+      crypto,
+      fiat
+    }
+  }, [assetBalance, values.asset])
+
+  const handleInputChange = (inputValue: string) => {
+    const value = Number(inputValue.replace(/[^0-9.-]+/g, ''))
+    const key = !fiatInput ? 'fiat.amount' : 'crypto.amount'
+    const assetPrice = values.asset.price
+    const amount = fiatInput
+      ? bnOrZero(value).div(assetPrice).toString()
+      : bnOrZero(value).times(assetPrice).toString()
+    setValue(key, amount)
+  }
+
+  // const fiatField = fieldName === 'fiat.amount'
+  const validateCryptoAmount = (value: string) => {
+    if (!fiatInput) {
+      const hasValidBalance = accountBalances.crypto.gte(value.replace(/[^0-9.-]+/g, ''))
+      return hasValidBalance || 'common.insufficientFunds'
+    }
+    return true
+  }
+
+  const validateFiatAmount = (value: string) => {
+    if (fiatInput) {
+      const hasValidBalance = accountBalances.fiat.gte(value.replace(/[^0-9.-]+/g, ''))
+      return hasValidBalance || 'common.insufficientFunds'
+    }
+    return true
+  }
+
+  const cryptoError = get(errors, 'crypto.amount.message', null)
+  const fiatError = get(errors, 'fiat.amount.message', null)
+  const balanceError = cryptoError || fiatError
 
   return (
     <SlideTransition>
@@ -60,7 +123,7 @@ export const Details = () => {
         onClick={() => history.push('/send/select')}
       />
       <ModalHeader textAlign='center'>
-        {translate('modals.send.sendForm.sendAsset', { asset: 'Bitcoin' })}
+        {translate('modals.send.sendForm.sendAsset', { asset: values.asset.name })}
       </ModalHeader>
       <ModalCloseButton borderRadius='full' />
       <ModalBody>
@@ -82,7 +145,14 @@ export const Details = () => {
               )}
               control={control}
               name='address'
-              rules={{ required: true }}
+              rules={{
+                required: true,
+                validate: {
+                  validateAddress: (value: string) => {
+                    return true
+                  }
+                }
+              }}
             />
             <InputRightElement>
               <IconButton aria-label='Scan QR Code' size='sm' variant='ghost' icon={<QRCode />} />
@@ -99,19 +169,28 @@ export const Details = () => {
               as='button'
               color='gray.500'
               onClick={toggleCurrency}
+              textTransform='uppercase'
               _hover={{ color: 'white' }}
             >
               ≈{' '}
               {!fiatInput
-                ? `${getValues('fiat.amount') ?? 0} ${getValues('fiat.symbol')}`
-                : `${getValues('crypto.amount') ?? 0} ${getValues('crypto.symbol')}`}
+                ? `${values.fiat.amount ?? 0} ${values.fiat.symbol}`
+                : `${values.crypto.amount ?? 0} ${values.crypto.symbol}`}
             </FormHelperText>
           </Box>
           <TokenRow
             control={control}
             fieldName={fiatInput ? 'fiat.amount' : 'crypto.amount'}
+            onInputChange={handleInputChange}
             inputLeftElement={
-              <Button ml={1} size='sm' variant='ghost' width='full' onClick={toggleCurrency}>
+              <Button
+                ml={1}
+                size='sm'
+                variant='ghost'
+                textTransform='uppercase'
+                onClick={toggleCurrency}
+                width='full'
+              >
                 {fiatInput ? getValues('fiat.symbol') : getValues('crypto.symbol')}
               </Button>
             }
@@ -120,7 +199,10 @@ export const Details = () => {
                 <Text translation='modals.send.sendForm.max' />
               </Button>
             }
-            rules={{ required: true }}
+            rules={{
+              required: true,
+              validate: { validateCryptoAmount, validateFiatAmount }
+            }}
           />
         </FormControl>
         <FormControl mt={4}>
@@ -131,12 +213,20 @@ export const Details = () => {
         </FormControl>
       </ModalBody>
       <ModalFooter>
-        <Button variant='ghost' size='lg' mr={3} onClick={() => modal.close('send')}>
-          <Text translation='common.cancel' />
-        </Button>
-        <Button isDisabled={!isValid} colorScheme='blue' size='lg' onClick={onNext}>
-          <Text translation='common.next' />
-        </Button>
+        <Stack flex={1}>
+          <Button
+            isFullWidth
+            isDisabled={!isValid}
+            colorScheme={balanceError ? 'red' : 'blue'}
+            size='lg'
+            onClick={onNext}
+          >
+            <Text translation={balanceError || 'common.next'} />
+          </Button>
+          <Button isFullWidth variant='ghost' size='lg' mr={3} onClick={() => modal.close('send')}>
+            <Text translation='common.cancel' />
+          </Button>
+        </Stack>
       </ModalFooter>
     </SlideTransition>
   )

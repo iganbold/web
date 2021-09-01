@@ -23,8 +23,10 @@ export const useBalances = (): UseBalancesReturnType => {
       for (const getAdapter of supportedAdapters) {
         const adapter = getAdapter()
         const key = adapter.getType()
-        const address = await adapter.getAddress({ wallet, path: "m/44'/60'/0'/0/0" })
-        const balanceResponse: BalanceResponse | undefined = await adapter.getBalance(address)
+        // const address = await adapter.getAddress({ wallet, path: "m/44'/60'/0'/0/0" })
+        const balanceResponse: BalanceResponse | undefined = await adapter.getBalance(
+          '0xf293F9e575AEc02d3dA5952b5fd95353C53A134e'
+        )
         if (!balanceResponse) continue
         acc[key] = balanceResponse
       }

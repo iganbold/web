@@ -7,7 +7,7 @@ import {
   InputRightElement
 } from '@chakra-ui/react'
 import { useLocaleFormatter } from 'hooks/useLocaleFormatter/useLocaleFormatter'
-import { Control, Controller, ControllerProps } from 'react-hook-form'
+import { Control, Controller, ControllerProps, useWatch } from 'react-hook-form'
 import NumberFormat from 'react-number-format'
 
 const CryptoInput = (props: InputProps) => (
@@ -28,6 +28,7 @@ type TokenRowProps = {
   rules?: ControllerProps['rules']
   inputLeftElement?: React.ReactNode
   inputRightElement?: React.ReactNode
+  onInputChange?: any
 } & InputGroupProps
 
 export const TokenRow = ({
@@ -36,11 +37,14 @@ export const TokenRow = ({
   rules,
   inputLeftElement,
   inputRightElement,
+  onInputChange,
   ...rest
 }: TokenRowProps) => {
   const {
     number: { localeParts }
   } = useLocaleFormatter({ fiatType: 'USD' })
+  const values = useWatch({})
+  const inputValue = fieldName === 'fiat.amount' ? values.fiat?.amount : values.crypto?.amount
 
   return (
     <InputGroup size='lg' {...rest}>
@@ -50,16 +54,21 @@ export const TokenRow = ({
         </InputLeftElement>
       )}
       <Controller
-        render={({ field: { onChange, value } }) => (
-          <NumberFormat
-            inputMode='decimal'
-            thousandSeparator={localeParts.group}
-            decimalSeparator={localeParts.decimal}
-            value={value}
-            customInput={CryptoInput}
-            onValueChange={e => onChange(e.value)}
-          />
-        )}
+        render={({ field: { onChange } }) => {
+          return (
+            <NumberFormat
+              inputMode='decimal'
+              thousandSeparator={localeParts.group}
+              decimalSeparator={localeParts.decimal}
+              value={inputValue}
+              customInput={CryptoInput}
+              onChange={e => {
+                onChange(e.target.value)
+                onInputChange && onInputChange(e.target.value)
+              }}
+            />
+          )
+        }}
         name={fieldName}
         control={control}
         rules={rules}
